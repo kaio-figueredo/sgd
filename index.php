@@ -1,86 +1,180 @@
 <?php
-require 'db.php'; 
+session_start();
+require 'db.php';
 
-// Busca as turmas para o SELECT (apenas as que existem no banco)
-$query_turmas = $pdo->query("SELECT DISTINCT turma FROM usuarios WHERE turma IS NOT NULL AND turma != '' AND turma != 'Staff/Professor'");
-$lista_turmas = $query_turmas->fetchAll(PDO::FETCH_ASSOC);
+// Busca turmas únicas para o select do aluno
+try {
+    $stmt = $pdo->query("SELECT DISTINCT turma FROM usuarios WHERE turma IS NOT NULL AND turma != '' ORDER BY turma ASC");
+    $turmas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $turmas = [];
+}
 ?>
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>SGD - Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Dicionário Técnico SGD</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
-        body { background: #f0f2f5; height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-card { width: 100%; max-width: 400px; padding: 2rem; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); background: white; }
-        .hidden { display: none; } /* Classe auxiliar para esconder */
+        :root {
+            --primary-color: #0d6efd;
+            --accent-color: #ffc107;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f0f2f5 0%, #c9d6ff 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: #ffffff;
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .login-header {
+            background: var(--primary-color);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .login-header i { font-size: 3rem; margin-bottom: 10px; }
+
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 12px 15px;
+            border: 1px solid #dee2e6;
+            margin-bottom: 5px;
+        }
+
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .btn-login {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 600;
+            width: 100%;
+            border: none;
+            transition: 0.3s;
+            margin-top: 15px;
+        }
+
+        .btn-login:hover {
+            background: #0b5ed7;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
+        }
+
+        .input-group-text {
+            background: transparent;
+            border-radius: 10px 0 0 10px;
+            border-right: none;
+        }
+
+        .has-icon .form-control { border-left: none; border-radius: 0 10px 10px 0; }
+
+        label { font-size: 0.9rem; font-weight: 500; color: #555; margin-bottom: 5px; }
+
+        /* Esconde campos específicos inicialmente */
+        #field-senha, #field-turma { display: none; }
     </style>
 </head>
 <body>
+
 <div class="login-card">
-    <h3 class="text-center mb-4 text-primary">Dicionário Técnico</h3>
+    <div class="login-header">
+        <i class="bi bi-book-half"></i>
+        <h4 class="mb-0">Dicionário SENAI</h4>
+        <p class="small opacity-75">Sistema de Gerenciamento de Dados</p>
+    </div>
     
-    <form action="auth.php" method="POST">
-        <div class="mb-3">
-            <label class="form-label">Nome</label>
-            <input type="text" name="nome" class="form-control" required placeholder="Seu nome completo">
-        </div>
+    <div class="card-body p-4">
+        <form action="auth.php" method="POST">
+            
+            <div class="mb-3">
+                <label>Tipo de Acesso</label>
+                <select name="tipo" id="tipoSelect" class="form-select" required onchange="toggleFields()">
+                    <option value="" selected disabled>Quem é você?</option>
+                    <option value="aluno">Sou Aluno</option>
+                    <option value="professor">Sou Professor</option>
+                </select>
+            </div>
 
-        <div class="mb-3">
-            <label class="form-label">Tipo de Usuário</label>
-            <select name="tipo" id="tipoUsuario" class="form-select" onchange="alternarCampos()">
-                <option value="aluno" selected>Aluno</option>
-                <option value="professor">Professor</option>
-            </select>
-        </div>
+            <div class="mb-3">
+                <label>Nome Completo</label>
+                <div class="input-group has-icon">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" name="nome" class="form-control" placeholder="Digite seu nome" required>
+                </div>
+            </div>
 
-        <div class="mb-3" id="divTurma">
-            <label class="form-label">Turma</label>
-            <select name="turma" class="form-select" id="selectTurma">
-                <option value="" selected disabled>Selecione sua turma</option>
-                <?php foreach($lista_turmas as $t): ?>
-                    <option value="<?= $t['turma'] ?>"><?= $t['turma'] ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+            <div id="field-turma" class="mb-3">
+                <label>Sua Turma</label>
+                <div class="input-group has-icon">
+                    <span class="input-group-text"><i class="bi bi-people"></i></span>
+                    <select name="turma" class="form-select">
+                        <option value="" selected disabled>Selecione sua turma</option>
+                        <?php foreach($turmas as $t): ?>
+                            <option value="<?= $t['turma'] ?>"><?= $t['turma'] ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
 
-        <div class="mb-3 hidden" id="divSenha">
-            <label class="form-label">Código de Validação (Senha)</label>
-            <input type="password" name="codigo_validacao" id="inputSenha" class="form-control" placeholder="Digite sua senha">
-        </div>
+            <div id="field-senha" class="mb-3">
+                <label>Código de Validação (Senha)</label>
+                <div class="input-group has-icon">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    <input type="password" name="codigo_validacao" class="form-control" placeholder="••••••">
+                </div>
+            </div>
 
-        <button type="submit" class="btn btn-primary w-100 py-2 mt-3">Entrar no Sistema</button>
-    </form>
+            <button type="submit" class="btn-login">
+                Entrar no Sistema <i class="bi bi-arrow-right-short"></i>
+            </button>
+        </form>
+    </div>
 </div>
 
 <script>
-function alternarCampos() {
-    var tipo = document.getElementById("tipoUsuario").value;
-    var divTurma = document.getElementById("divTurma");
-    var divSenha = document.getElementById("divSenha");
-    var inputSenha = document.getElementById("inputSenha");
-    var selectTurma = document.getElementById("selectTurma");
+function toggleFields() {
+    const tipo = document.getElementById('tipoSelect').value;
+    const fieldSenha = document.getElementById('field-senha');
+    const fieldTurma = document.getElementById('field-turma');
+    const inputSenha = fieldSenha.querySelector('input');
+    const inputTurma = fieldTurma.querySelector('select');
 
-    if (tipo === "professor") {
-        // Professor: Mostra Senha e Esconde Turma
-        divSenha.classList.remove("hidden");
-        divTurma.classList.add("hidden");
-        
-        // Ajusta obrigatoriedade
+    if (tipo === 'professor') {
+        fieldSenha.style.display = 'block';
+        fieldTurma.style.display = 'none';
         inputSenha.required = true;
-        selectTurma.required = false;
-    } else {
-        // Aluno: Mostra Turma e Esconde Senha
-        divTurma.classList.remove("hidden");
-        divSenha.classList.add("hidden");
-        
-        // Ajusta obrigatoriedade
-        selectTurma.required = true;
+        inputTurma.required = false;
+    } else if (tipo === 'aluno') {
+        fieldSenha.style.display = 'none';
+        fieldTurma.style.display = 'block';
         inputSenha.required = false;
+        inputTurma.required = true;
     }
 }
 </script>
+
 </body>
 </html>
