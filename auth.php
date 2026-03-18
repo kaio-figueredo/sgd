@@ -1,33 +1,50 @@
 <?php
 session_start();
-require 'db.php';
+require 'db.php'; 
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $nome = $_POST['nome'];
-    $tipo = $_POST['tipo'];
-    $turma = $_POST['turma'] ?? '';
-    $codigo_enviado = $_POST['codigo_validacao'] ?? '';
+    // Captura o tipo enviado pelo select do index.php
+    $tipo   = $_POST['tipo'] ?? 'aluno';
+    $nome   = $_POST['nome'] ?? '';
+    $codigo = $_POST['codigo_validacao'] ?? '';
+    $turma  = $_POST['turma'] ?? '';
 
-    // DEFINA O CÓDIGO DO PROFESSOR AQUI
-    $codigo_secreto_professor = "SENAI123"; 
-
-    if ($tipo == 'professor') {
-        if ($codigo_enviado !== $codigo_secreto_professor) {
-            echo "<script>alert('Código de Professor Inválido!'); window.location='index.php';</script>";
-            exit;
+    try {
+        if ($tipo === 'professor') {
+            // Lógica para Professor: Valida NOME e SENHA (ignora turma)
+            $sql = "SELECT * FROM usuarios WHERE nome = :nome AND codigo_validacao = :codigo AND tipo = 'professor'";
+            $params = [
+                ':nome'   => $nome,
+                ':codigo' => $codigo
+            ];
+        } else {
+            // Lógica para Aluno: Valida NOME e TURMA (ignora senha)
+            $sql = "SELECT * FROM usuarios WHERE nome = :nome AND turma = :turma AND tipo = 'aluno'";
+            $params = [
+                ':nome'  => $nome,
+                ':turma' => $turma
+            ];
         }
-        $turma = "Staff/Professor";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($usuario) {
+            // Sucesso! Guarda os dados na sessão
+            $_SESSION['usuario_id']    = $usuario['id'];
+            $_SESSION['usuario_nome']  = $usuario['nome'];
+            $_SESSION['usuario_tipo']  = $usuario['tipo'];
+            $_SESSION['usuario_turma'] = $usuario['turma'];
+
+            header("Location: dashboard.php");
+            exit;
+        } else {
+            // Se não encontrar nada no banco
+            echo "<script>alert('Dados incorretos! Verifique as informações digitadas.'); window.location='index.php';</script>";
+        }
+
+    } catch (PDOException $e) {
+        die("Erro ao consultar o banco: " . $e->getMessage());
     }
-
-    // Salva no banco para saber quem postou o que
-    $stmt = $pdo->prepare("INSERT INTO usuarios (nome, tipo, turma, codigo_validacao) VALUES (?, ?, ?, ?)");
-    $stmt->execute([$nome, $tipo, $turma, $codigo_enviado]);
-    
-    // Salva na SESSÃO (Isso faz o login durar)
-    $_SESSION['usuario_id'] = $pdo->lastInsertId();
-    $_SESSION['usuario_nome'] = $nome;
-    $_SESSION['usuario_tipo'] = $tipo;
-
-    header("Location: dashboard.php");
 }
-?>
