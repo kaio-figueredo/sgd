@@ -103,7 +103,6 @@ try {
     <div class="login-header">
         <i class="bi bi-book-half"></i>
         <h4 class="mb-0">Dicionário SENAI</h4>
-        <p class="small opacity-75">Sistema de Gerenciamento de Dados</p>
     </div>
     
     <div class="card-body p-4">
